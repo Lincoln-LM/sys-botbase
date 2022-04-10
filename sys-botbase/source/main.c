@@ -41,6 +41,7 @@ void sub_key(void *arg);
 void sub_click(void *arg);
 void usbMainLoop();
 void wifiMainLoop();
+bool isUSB();
 
 // locks for thread
 Mutex freezeMutex, touchMutex, keyMutex, clickMutex;
@@ -116,12 +117,27 @@ void __appInit(void)
     rc = pminfoInitialize();
 	if (R_FAILED(rc)) 
 		fatalThrow(rc);
-    rc = usbCommsInitialize();
+    rc = fsInitialize();
     if (R_FAILED(rc))
         fatalThrow(rc);
-    rc = socketInitializeDefault();
+    rc = fsdevMountSdmc();
     if (R_FAILED(rc))
         fatalThrow(rc);
+
+    usb = isUSB();
+    if (usb)
+    {
+        rc = usbCommsInitialize();
+        if (R_FAILED(rc))
+            fatalThrow(rc);
+    }
+    else
+    {
+        rc = socketInitializeDefault();
+        if (R_FAILED(rc))
+            fatalThrow(rc);
+    }
+
     rc = capsscInitialize();
     if (R_FAILED(rc))
         fatalThrow(rc);
@@ -132,12 +148,15 @@ void __appInit(void)
 
 void __appExit(void)
 {
+    fsdevUnmountAll();
+    fsExit();
     smExit();
     audoutExit();
     timeExit();
-    socketExit();
     viExit();
-    usbCommsExit();
+    if (usb)
+        usbCommsExit();
+    else socketExit();
 }
 
 u64 mainLoopSleepTime = 50;
@@ -1048,16 +1067,6 @@ void del_from_pfds(struct pollfd pfds[], int i, int *fd_count)
 
 int main()
 {
-    char str[4];
-    FILE* config = fopen("sdmc:/atmosphere/contents/430000000000000B/config.cfg", "r");
-    if (config)
-    {
-        fscanf(config, "%[^\n]", str);
-        fclose(config);
-        if (strcmp(strlwr(str), "wifi") == 0)
-            usb = false;
-    }
-
     Result rc;
     initFreezes();
 
@@ -1385,4 +1394,18 @@ void sub_click(void *arg)
 
         svcSleepThread(1e+6L);
     }
+}
+
+bool isUSB()
+{
+    char str[4];
+    FILE* config = fopen("sdmc:/atmosphere/contents/430000000000000B/config.cfg", "r");
+    if (config)
+    {
+        fscanf(config, "%[^\n]", str);
+        fclose(config);
+        if (strcmp(strlwr(str), "wifi") == 0)
+            return false;
+    }
+    return true;
 }
