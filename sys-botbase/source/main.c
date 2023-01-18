@@ -944,6 +944,18 @@ int argmain(int argc, char **argv)
 
     if(!strcmp(argv[0], "resetTime"))
         resetTime();
+	
+	if (!strcmp(argv[0], "getUnixTime"))
+	{
+		long time = getUnixTime();	
+		if (usb)
+		{
+			response.size = sizeof(long);
+			response.data = &time;
+			sendUsbResponse(response);
+		}
+        else printf("%016lX\n", time);
+	}
 
     return 0;
 }

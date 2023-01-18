@@ -6,7 +6,6 @@
 #include <math.h>
 #include "commands.h"
 #include "util.h"
-#include "time.h"
 
 //Controller:
 bool bControllerIsInitialised = false;
@@ -524,4 +523,16 @@ void sendUsbResponse(USBResponse response)
     usbCommsWrite((void*)&response, 4);
     if (response.size > 0)
         usbCommsWrite(response.data, response.size);
+}
+
+long getUnixTime()
+{
+	time_t unixTime = 0;
+    Result tg = timeGetCurrentTime(TimeType_UserSystemClock, (u64*)&unixTime);
+    if (R_FAILED(tg))
+	{
+		fatalThrow(tg);
+		return -1;
+	}
+	return unixTime;
 }
